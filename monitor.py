@@ -20,6 +20,7 @@ POLL_INTERVAL_SECONDS = 60
 # ntfy.sh topic — set this to any unique string (acts as your private channel)
 # Install the ntfy app on your phone and subscribe to this same topic
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "dj-permit-watch-2026")
+NTFY_TOKEN = os.environ.get("NTFY_TOKEN", "")  # optional: ntfy.sh access token for paid plan
 
 # ─── Notification ────────────────────────────────────────────────────────────
 
@@ -28,6 +29,8 @@ def send_notification(title: str, body: str, url: str = None):
     """Send push notification via ntfy.sh (free, no account needed)."""
     headers = {"Priority": "urgent", "Tags": "camping"}
     headers["Title"] = title.encode("utf-8")
+    if NTFY_TOKEN:
+        headers["Authorization"] = f"Bearer {NTFY_TOKEN}"
     if url:
         headers["Click"] = url
         headers["Actions"] = f"view, Book Now, {url}"
