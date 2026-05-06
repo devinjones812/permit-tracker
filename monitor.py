@@ -10,9 +10,9 @@ from permit_api import check_permit, BOOKING_URL
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
-TARGET_DIVISION = os.environ.get("TARGET_DIVISION", "44585917")
-TARGET_DATE = os.environ.get("TARGET_DATE", "2026-05-09")
-GROUP_SIZE = int(os.environ.get("GROUP_SIZE", "3"))
+TARGET_DIVISION = os.environ["TARGET_DIVISION"]
+TARGET_DATE = os.environ["TARGET_DATE"]
+GROUP_SIZE = int(os.environ["GROUP_SIZE"])
 POLL_INTERVAL_SECONDS = int(os.environ.get("POLL_INTERVAL_SECONDS", "60"))
 
 # ntfy.sh topic — set this to any unique string (acts as your private channel)
