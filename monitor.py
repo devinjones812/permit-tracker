@@ -11,7 +11,7 @@ from permit_api import check_permit, BOOKING_URL
 # ─── Configuration ───────────────────────────────────────────────────────────
 
 TARGET_DIVISION = "44585917"
-TARGET_DATE = "2026-05-13"
+TARGET_DATE = "2026-05-09"
 GROUP_SIZE = 1
 POLL_INTERVAL_SECONDS = 60
 
