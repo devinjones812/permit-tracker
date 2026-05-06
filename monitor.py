@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Poll recreation.gov every minute and send an SMS when permits open up."""
+"""Poll recreation.gov every minute and send a push notification when permits open up."""
 
 import os
 import time
 import sys
 from datetime import datetime
-from twilio.rest import Client as TwilioClient
+import requests as http_requests
 from permit_api import check_permit, BOOKING_URL
 
 # ─── Configuration ───────────────────────────────────────────────────────────
@@ -15,28 +15,32 @@ TARGET_DATE = "2026-05-09"
 GROUP_SIZE = 3
 POLL_INTERVAL_SECONDS = 60
 
-# Twilio credentials (set these as environment variables)
-TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
-TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER")  # your Twilio phone number
-NOTIFY_TO_NUMBER = os.environ.get("NOTIFY_TO_NUMBER")  # your personal phone number
+# ntfy.sh topic — set this to any unique string (acts as your private channel)
+# Install the ntfy app on your phone and subscribe to this same topic
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "permit-tracker-alerts")
 
-# ─── SMS ─────────────────────────────────────────────────────────────────────
+# ─── Notification ────────────────────────────────────────────────────────────
 
 
-def send_sms(body: str):
-    if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER, NOTIFY_TO_NUMBER]):
-        print(f"  [!] SMS skipped — Twilio env vars not set.")
-        print(f"      Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER, NOTIFY_TO_NUMBER")
-        return
+def send_notification(title: str, body: str, url: str = None):
+    """Send push notification via ntfy.sh (free, no account needed)."""
+    headers = {"Title": title, "Priority": "urgent", "Tags": "camping"}
+    if url:
+        headers["Click"] = url
+        headers["Actions"] = f"view, Book Now, {url}"
 
-    client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    message = client.messages.create(
-        body=body,
-        from_=TWILIO_FROM_NUMBER,
-        to=NOTIFY_TO_NUMBER,
-    )
-    print(f"  [✓] SMS sent (sid: {message.sid})")
+    try:
+        resp = http_requests.post(
+            f"https://ntfy.sh/{NTFY_TOPIC}",
+            data=body,
+            headers=headers,
+        )
+        if resp.ok:
+            print(f"  [✓] Push notification sent to topic '{NTFY_TOPIC}'")
+        else:
+            print(f"  [!] Notification failed: {resp.status_code} {resp.text}")
+    except Exception as e:
+        print(f"  [!] Notification error: {e}")
 
 
 # ─── Main loop ───────────────────────────────────────────────────────────────
@@ -49,6 +53,7 @@ def run():
     print(f"  Watching:   {TARGET_DIVISION} on {TARGET_DATE}")
     print(f"  Group size: {GROUP_SIZE}")
     print(f"  Interval:   every {POLL_INTERVAL_SECONDS}s")
+    print(f"  Notify via: ntfy.sh/{NTFY_TOPIC}")
     print(f"{'='*60}\n")
 
     already_notified = False
@@ -66,17 +71,20 @@ def run():
         available = result["available"]
 
         if available:
-            print(f"  [{now}] 🎉 AVAILABLE! {remaining} spots — sending SMS...")
+            print(f"  [{now}] 🎉 AVAILABLE! {remaining} spots — sending notification...")
             if not already_notified:
-                send_sms(
-                    f"🎉 Yosemite permit OPEN!\n"
-                    f"{result['division_name']} on {TARGET_DATE}\n"
-                    f"{remaining} spot(s) available (need {GROUP_SIZE})\n"
-                    f"Book NOW: {BOOKING_URL}"
+                send_notification(
+                    title="🎉 Yosemite Permit OPEN!",
+                    body=(
+                        f"{result['division_name']} on {TARGET_DATE}\n"
+                        f"{remaining} spot(s) available (need {GROUP_SIZE})\n"
+                        f"Book NOW!"
+                    ),
+                    url=BOOKING_URL,
                 )
                 already_notified = True
             else:
-                print(f"  [{now}] (already notified, skipping duplicate SMS)")
+                print(f"  [{now}] (already notified, skipping duplicate)")
         elif remaining > 0:
             print(f"  [{now}] ⚠️  {remaining} spots (need {GROUP_SIZE}) — not enough")
             already_notified = False
