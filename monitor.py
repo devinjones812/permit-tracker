@@ -15,6 +15,8 @@ TARGET_DATE = "2026-05-09"
 GROUP_SIZE = 1
 POLL_INTERVAL_SECONDS = 60
 
+# git add -A && git commit -m "changed date for test" && git push
+
 # ntfy.sh topic — set this to any unique string (acts as your private channel)
 # Install the ntfy app on your phone and subscribe to this same topic
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "permit-tracker-alerts")
@@ -56,6 +58,18 @@ def run():
     print(f"  Interval:   every {POLL_INTERVAL_SECONDS}s")
     print(f"  Notify via: ntfy.sh/{NTFY_TOPIC}")
     print(f"{'='*60}\n")
+
+    # Startup check — notify that the monitor is live
+    try:
+        result = check_permit(TARGET_DATE, TARGET_DIVISION, GROUP_SIZE)
+        remaining = result["remaining"]
+        send_notification(
+            title="Monitor deployed",
+            body=f"Watching {result['division_name']} on {TARGET_DATE}\n"
+                 f"Currently {remaining} spot(s) available, need {GROUP_SIZE}.",
+        )
+    except Exception as e:
+        send_notification(title="Monitor deployed", body=f"Running, but first check failed: {e}")
 
     already_notified = False
 
