@@ -12,7 +12,7 @@ from permit_api import check_permit, BOOKING_URL
 
 TARGET_DIVISION = "44585917"
 TARGET_DATE = "2026-05-09"
-GROUP_SIZE = 3
+GROUP_SIZE = 1
 POLL_INTERVAL_SECONDS = 60
 
 # ntfy.sh topic — set this to any unique string (acts as your private channel)
