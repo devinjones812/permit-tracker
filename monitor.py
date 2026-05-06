@@ -19,7 +19,7 @@ POLL_INTERVAL_SECONDS = 60
 
 # ntfy.sh topic — set this to any unique string (acts as your private channel)
 # Install the ntfy app on your phone and subscribe to this same topic
-NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "permit-tracker-alerts")
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "dj-permit-watch-2026")
 
 # ─── Notification ────────────────────────────────────────────────────────────
 
