@@ -10,10 +10,10 @@ from permit_api import check_permit, BOOKING_URL
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
-TARGET_DIVISION = os.environ.get("TARGET_DIVISION")
-TARGET_DATE = os.environ.get("TARGET_DATE")
-GROUP_SIZE = int(os.environ.get("GROUP_SIZE", "0"))
-POLL_INTERVAL_SECONDS = int(os.environ.get("POLL_INTERVAL_SECONDS", "60"))
+TARGET_DIVISION = "44585917"
+TARGET_DATE = "2026-05-09"
+GROUP_SIZE = 3
+POLL_INTERVAL_SECONDS = 60
 
 # ntfy.sh topic — set this to any unique string (acts as your private channel)
 # Install the ntfy app on your phone and subscribe to this same topic
@@ -48,21 +48,6 @@ def send_notification(title: str, body: str, url: str = None):
 
 
 def run():
-    missing = []
-    if not TARGET_DIVISION:
-        missing.append("TARGET_DIVISION")
-    if not TARGET_DATE:
-        missing.append("TARGET_DATE")
-    if not GROUP_SIZE:
-        missing.append("GROUP_SIZE")
-
-    if missing:
-        print(f"\n  ERROR: Missing required env vars: {', '.join(missing)}")
-        print(f"  Set them in Railway → Variables tab, then redeploy.")
-        print(f"  Waiting for config...")
-        while True:
-            time.sleep(60)
-
     print(f"\n{'='*60}")
     print(f"  Permit Monitor")
     print(f"{'='*60}")
