@@ -75,9 +75,23 @@ def run():
         send_notification(title="Monitor deployed", body=f"Running, but first check failed: {e}")
 
     already_notified = False
+    start_time = time.time()
+    last_heartbeat = start_time
+    HEARTBEAT_INTERVAL = 12 * 60 * 60  # 12 hours
 
     while True:
         now = datetime.now().strftime("%H:%M:%S")
+
+        # Heartbeat every 12 hours
+        elapsed = time.time() - start_time
+        if time.time() - last_heartbeat >= HEARTBEAT_INTERVAL:
+            hours = int(elapsed // 3600)
+            send_notification(
+                title="Monitor still running",
+                body=f"Running for {hours}h. Still watching {TARGET_DATE} ({GROUP_SIZE} spots needed).",
+            )
+            last_heartbeat = time.time()
+
         try:
             result = check_permit(TARGET_DATE, TARGET_DIVISION, GROUP_SIZE)
         except Exception as e:
