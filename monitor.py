@@ -24,7 +24,8 @@ NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "permit-tracker-alerts")
 
 def send_notification(title: str, body: str, url: str = None):
     """Send push notification via ntfy.sh (free, no account needed)."""
-    headers = {"Title": title, "Priority": "urgent", "Tags": "camping"}
+    headers = {"Priority": "urgent", "Tags": "camping"}
+    headers["Title"] = title.encode("utf-8")
     if url:
         headers["Click"] = url
         headers["Actions"] = f"view, Book Now, {url}"
@@ -32,7 +33,7 @@ def send_notification(title: str, body: str, url: str = None):
     try:
         resp = http_requests.post(
             f"https://ntfy.sh/{NTFY_TOPIC}",
-            data=body,
+            data=body.encode("utf-8"),
             headers=headers,
         )
         if resp.ok:
@@ -95,9 +96,25 @@ def run():
         time.sleep(POLL_INTERVAL_SECONDS)
 
 
+def test():
+    """Send a fake alert to verify notifications are working."""
+    print(f"\n  Sending test notification to ntfy.sh/{NTFY_TOPIC}...")
+    send_notification(
+        title="🧪 TEST — Permit Alert Working!",
+        body=(
+            f"If you see this, your pipeline is working.\n"
+            f"You'll be notified when {TARGET_DIVISION} opens on {TARGET_DATE}."
+        ),
+        url=BOOKING_URL,
+    )
+
+
 if __name__ == "__main__":
     try:
-        run()
+        if "--test" in sys.argv:
+            test()
+        else:
+            run()
     except KeyboardInterrupt:
         print("\n  Stopped.")
         sys.exit(0)
