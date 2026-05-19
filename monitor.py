@@ -1,142 +1,104 @@
 #!/usr/bin/env python3
-"""Poll recreation.gov every minute and send a push notification when permits open up."""
+"""Poll recreation.gov for multiple permits and notify on availability."""
 
-import os
 import time
 import sys
 from datetime import datetime
-import requests as http_requests
-from permit_api import check_permit, BOOKING_URL
+from permit_api import check_permit
+from watches import WATCHES
+import notify
 
-# ─── Configuration ───────────────────────────────────────────────────────────
-
-TARGET_DIVISION = "44585917"
-TARGET_DATE = "2026-05-09"
-GROUP_SIZE = 1
 POLL_INTERVAL_SECONDS = 60
-
-# git add -A && git commit -m "changed date for test" && git push
-
-# ntfy.sh topic — set this to any unique string (acts as your private channel)
-# Install the ntfy app on your phone and subscribe to this same topic
-NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "dj-permit-watch-2026")
-NTFY_TOKEN = os.environ.get("NTFY_TOKEN", "")  # optional: ntfy.sh access token for paid plan
-
-# ─── Notification ────────────────────────────────────────────────────────────
+HEARTBEAT_INTERVAL = 12 * 60 * 60  # 12 hours
 
 
-def send_notification(title: str, body: str, url: str = None):
-    """Send push notification via ntfy.sh (free, no account needed)."""
-    headers = {"Priority": "urgent", "Tags": "camping"}
-    headers["Title"] = title.encode("utf-8")
-    if NTFY_TOKEN:
-        headers["Authorization"] = f"Bearer {NTFY_TOKEN}"
-    if url:
-        headers["Click"] = url
-        headers["Actions"] = f"view, Book Now, {url}"
+def startup_check():
+    """Run initial check and send deploy notification."""
+    lines = []
+    for w in WATCHES:
+        try:
+            result = check_permit(w["permit_id"], w["date"], w["division_id"], w["group_size"])
+            lines.append(f"• {w['name']} ({w['date']}): {result['remaining']} spots, need {w['group_size']}")
+        except Exception as e:
+            lines.append(f"• {w['name']}: error ({e})")
 
-    try:
-        resp = http_requests.post(
-            f"https://ntfy.sh/{NTFY_TOPIC}",
-            data=body.encode("utf-8"),
-            headers=headers,
-        )
-        if resp.ok:
-            print(f"  [✓] Push notification sent to topic '{NTFY_TOPIC}'")
-        else:
-            print(f"  [!] Notification failed: {resp.status_code} {resp.text}")
-    except Exception as e:
-        print(f"  [!] Notification error: {e}")
-
-
-# ─── Main loop ───────────────────────────────────────────────────────────────
+    notify.send(
+        title="Monitor deployed",
+        body=f"Watching {len(WATCHES)} permit(s):\n" + "\n".join(lines),
+        priority="default",
+    )
 
 
 def run():
     print(f"\n{'='*60}")
-    print(f"  Permit Monitor")
+    print(f"  Permit Monitor — {len(WATCHES)} watch(es)")
     print(f"{'='*60}")
-    print(f"  Watching:   {TARGET_DIVISION} on {TARGET_DATE}")
-    print(f"  Group size: {GROUP_SIZE}")
-    print(f"  Interval:   every {POLL_INTERVAL_SECONDS}s")
-    print(f"  Notify via: ntfy.sh/{NTFY_TOPIC}")
+    for w in WATCHES:
+        print(f"  • {w['name']} | {w['date']} | need {w['group_size']}")
+    print(f"  Interval: every {POLL_INTERVAL_SECONDS}s")
+    print(f"  Notify:   ntfy.sh/{notify.NTFY_TOPIC}")
     print(f"{'='*60}\n")
 
-    # Startup check — notify that the monitor is live
-    try:
-        result = check_permit(TARGET_DATE, TARGET_DIVISION, GROUP_SIZE)
-        remaining = result["remaining"]
-        send_notification(
-            title="Monitor deployed",
-            body=f"Watching {result['division_name']} on {TARGET_DATE}\n"
-                 f"Currently {remaining} spot(s) available, need {GROUP_SIZE}.",
-        )
-    except Exception as e:
-        send_notification(title="Monitor deployed", body=f"Running, but first check failed: {e}")
+    startup_check()
 
-    already_notified = False
+    notified = set()
     start_time = time.time()
     last_heartbeat = start_time
-    HEARTBEAT_INTERVAL = 12 * 60 * 60  # 12 hours
 
     while True:
         now = datetime.now().strftime("%H:%M:%S")
 
-        # Heartbeat every 12 hours
+        # Heartbeat
         elapsed = time.time() - start_time
         if time.time() - last_heartbeat >= HEARTBEAT_INTERVAL:
             hours = int(elapsed // 3600)
-            send_notification(
+            summary = ", ".join(w["name"] for w in WATCHES)
+            notify.send(
                 title="Monitor still running",
-                body=f"Running for {hours}h. Still watching {TARGET_DATE} ({GROUP_SIZE} spots needed).",
+                body=f"Running for {hours}h. Watching: {summary}",
+                priority="low",
             )
             last_heartbeat = time.time()
 
-        try:
-            result = check_permit(TARGET_DATE, TARGET_DIVISION, GROUP_SIZE)
-        except Exception as e:
-            print(f"  [{now}] Error: {e}")
-            time.sleep(POLL_INTERVAL_SECONDS)
-            continue
+        # Check each watch
+        for w in WATCHES:
+            key = f"{w['permit_id']}:{w['division_id']}:{w['date']}"
+            try:
+                result = check_permit(w["permit_id"], w["date"], w["division_id"], w["group_size"])
+            except Exception as e:
+                print(f"  [{now}] {w['name']}: error — {e}")
+                continue
 
-        remaining = result["remaining"]
-        available = result["available"]
+            remaining = result["remaining"]
 
-        if available:
-            print(f"  [{now}] 🎉 AVAILABLE! {remaining} spots — sending notification...")
-            if not already_notified:
-                send_notification(
-                    title="🎉 Yosemite Permit OPEN!",
-                    body=(
-                        f"{result['division_name']} on {TARGET_DATE}\n"
-                        f"{remaining} spot(s) available (need {GROUP_SIZE})\n"
-                        f"Book NOW!"
-                    ),
-                    url=BOOKING_URL,
-                )
-                already_notified = True
+            if result["available"]:
+                if key not in notified:
+                    print(f"  [{now}] {w['name']}: 🎉 {remaining} spots!")
+                    notify.send(
+                        title=f"🎉 {w['name']} — OPEN!",
+                        body=f"{remaining} spot(s) available on {w['date']} (need {w['group_size']})\nBook NOW!",
+                        url=result["booking_url"],
+                    )
+                    notified.add(key)
+                else:
+                    print(f"  [{now}] {w['name']}: still available ({remaining}), already notified")
             else:
-                print(f"  [{now}] (already notified, skipping duplicate)")
-        elif remaining > 0:
-            print(f"  [{now}] ⚠️  {remaining} spots (need {GROUP_SIZE}) — not enough")
-            already_notified = False
-        else:
-            print(f"  [{now}] ❌ 0 spots")
-            already_notified = False
+                if key in notified:
+                    notified.discard(key)
+                if remaining > 0:
+                    print(f"  [{now}] {w['name']}: {remaining} spots (need {w['group_size']})")
+                else:
+                    print(f"  [{now}] {w['name']}: ❌ 0")
 
         time.sleep(POLL_INTERVAL_SECONDS)
 
 
 def test():
-    """Send a fake alert to verify notifications are working."""
-    print(f"\n  Sending test notification to ntfy.sh/{NTFY_TOPIC}...")
-    send_notification(
-        title="🧪 TEST — Permit Alert Working!",
-        body=(
-            f"If you see this, your pipeline is working.\n"
-            f"You'll be notified when {TARGET_DIVISION} opens on {TARGET_DATE}."
-        ),
-        url=BOOKING_URL,
+    """Send a test notification."""
+    print(f"  Sending test notification...")
+    notify.send(
+        title="🧪 TEST — Permit Monitor",
+        body=f"Watching {len(WATCHES)} permit(s). Notifications work!",
     )
 
 
