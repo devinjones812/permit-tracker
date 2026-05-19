@@ -10,17 +10,17 @@ Each watch needs:
 """
 
 WATCHES = [
-    {
-        "name": "Happy Isles → LYV",
-        "permit_id": "445859",
-        "division_id": "44585917",
-        "date": "2026-05-09",
-        "group_size": 3,
-    },
+    # {
+    #     "name": "Happy Isles → LYV",
+    #     "permit_id": "445859",
+    #     "division_id": "44585917",
+    #     "date": "2026-05-09",
+    #     "group_size": 3,
+    # },
     {
         "name": "Mt Whitney Overnight",
         "permit_id": "445860",
-        "division_id": "406",
+        "division_id": "166",
         "date": "2026-05-22",
         "group_size": 1,
     },
