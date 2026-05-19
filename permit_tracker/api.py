@@ -35,7 +35,7 @@ def fetch_availability(permit_id: str, date: str) -> dict:
 
 
 def check_permit(permit_id: str, date: str, division_id: str, group_size: int) -> dict:
-    """Check availability for a specific permit/trailhead/date/group size.
+    """Check availability for a specific permit/division/date/group size.
 
     Returns:
         {

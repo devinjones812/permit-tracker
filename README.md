@@ -4,11 +4,11 @@ Monitors recreation.gov permit availability and sends push notifications via [nt
 
 ## How it works
 
-`monitor.py` polls the recreation.gov API every 60 seconds for each permit in `watches.py`. When availability appears, it sends an urgent push notification with a direct booking link.
+Polls the recreation.gov API every 60 seconds for each permit in `watches.py`. When availability appears, sends an urgent push notification with a direct booking link.
 
 ## Usage
 
-1. Edit `watches.py` with the permits you want to track
+1. Edit `permit_tracker/watches.py` with the permits you want to track
 2. Push to GitHub — Railway auto-deploys
 3. Get notified on your phone when spots open
 
@@ -20,7 +20,7 @@ Find your permit on recreation.gov, note the permit ID from the URL (`/permits/{
 curl "https://www.recreation.gov/api/permitinyo/{PERMIT_ID}/availability?start_date=YYYY-MM-01&end_date=YYYY-MM-31&commercial_acct=false"
 ```
 
-Add an entry to `watches.py`:
+Add an entry to `permit_tracker/watches.py`:
 
 ```python
 {
@@ -32,14 +32,21 @@ Add an entry to `watches.py`:
 },
 ```
 
-## Files
+## Project structure
 
-| File | Purpose |
-|------|---------|
-| `watches.py` | What to monitor — edit this to change watches |
-| `monitor.py` | Polling loop, deploy notification, 12h heartbeat |
-| `permit_api.py` | Generic recreation.gov permit API client |
-| `notify.py` | ntfy.sh push notification logic |
+```
+permit-tracker/
+├── permit_tracker/
+│   ├── __init__.py
+│   ├── api.py          ← generic recreation.gov API client
+│   ├── notify.py       ← ntfy.sh push notification logic
+│   ├── watches.py      ← what to monitor (edit this)
+│   └── monitor.py      ← polling loop, deploy notif, 12h heartbeat
+├── Dockerfile
+├── railway.toml
+├── requirements.txt
+└── README.md
+```
 
 ## Environment variables (set on Railway)
 
@@ -47,3 +54,10 @@ Add an entry to `watches.py`:
 |----------|----------|-------------|
 | `NTFY_TOPIC` | No | ntfy.sh topic (default: `dj-permit-watch-2026`) |
 | `NTFY_TOKEN` | No | ntfy.sh auth token for higher rate limits |
+
+## Local development
+
+```bash
+python3 -m permit_tracker.monitor          # run the monitor
+python3 -m permit_tracker.monitor --test   # send a test notification
+```

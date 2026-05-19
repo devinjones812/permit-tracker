@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
 """Poll recreation.gov for multiple permits and notify on availability."""
 
 import time
 import sys
 from datetime import datetime
-from permit_api import check_permit
-from watches import WATCHES
-import notify
+from permit_tracker.api import check_permit
+from permit_tracker.watches import WATCHES
+from permit_tracker import notify
 
 POLL_INTERVAL_SECONDS = 60
 HEARTBEAT_INTERVAL = 12 * 60 * 60  # 12 hours
@@ -102,7 +101,7 @@ def test():
     )
 
 
-if __name__ == "__main__":
+def main():
     try:
         if "--test" in sys.argv:
             test()
@@ -111,3 +110,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n  Stopped.")
         sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
